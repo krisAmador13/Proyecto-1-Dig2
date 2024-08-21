@@ -25,11 +25,23 @@ unsigned long bot_T_lastlL=0;
 unsigned long t_rebote = 60;
 
 //Definimos las funciones de PWM
-void initPWMs();
+void initPWM1();
 //Establecemos la función de inicio de los PWM
-void initPWMs(void){
-ledcSetup(PWM1_Pin, freq, res);
-ledcAttachPin(ledPin1, ledChannel);
+void initPWM1(void){
+ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para servo 
+ledcAttachPin(servo, PWM1_Pin); //Le mandamos la señal de PWM al servo 
+}
+void initPWM2(void){
+ledcSetup(PWM2_Pin, freq, res);//Establecemos la señal PWM para led
+ledcAttachPin(LED_rojo, PWM2_Pin); //Le mandamos la señal de PWM al led rojo 
+}
+void initPWM3(void){
+ledcSetup(PWM3_Pin, freq, res);//Establecemos la señal PWM para led
+ledcAttachPin(LED_verde, PWM3_Pin); //Le mandamos la señal de PWM al led verde
+}
+void initPWM4(void){
+ledcSetup(PWM4_Pin, freq, res);//Establecemos la señal PWM para led
+ledcAttachPin(LED_azul, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
 }
 
 
