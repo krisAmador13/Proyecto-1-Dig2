@@ -14,9 +14,22 @@ int freq = 50;
 //definimos pines de entrada 
 #define Sensor_T 32
 #define bot_T 33
+//Definimos algunas salidas 
+#define LED_rojo 18
+#define LED_verde 19
+#define LED_azul 21
+#define servo 5
 
 //Definimos algunas variables para interrupciones 
 unsigned long bot_T_lastlL=0;
 unsigned long t_rebote = 60;
+
+//Definimos las funciones de PWM
+void initPWMs();
+//Establecemos la función de inicio de los PWM
+void initPWMs(void){
+ledcSetup(PWM1_Pin, freq, res);
+ledcAttachPin(ledPin1, ledChannel);
+}
 
 
