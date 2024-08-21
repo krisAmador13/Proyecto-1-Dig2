@@ -30,6 +30,7 @@ float valor_D=0;
 //Definimos algunas variables para interrupciones 
 unsigned long bot_T_lastlL=0;
 unsigned long t_rebote = 60;
+volatile int lectura=0;
 
 //Definimos las funciones de PWM
 void initPWM1();
@@ -57,11 +58,26 @@ void initPWM4(void){
 ledcSetup(PWM4_Pin, freq, res);//Establecemos la señal PWM para led
 ledcAttachPin(LED_azul, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
 }
+//Establecemos función para iniciación de ADC
 void initADC(void){
-analogSetWidth(width);
-analogSetVRefPin(ref_Pin);
-valor_A= analogReadMilliVolts(sensor_T);
-valor_D= map(valor_A, 0, 1023, 0, 37.5);
+valor_A= analogRead(sensor_T);
+valor_D= map(valor_A, 0, 4095, 320, 400);
 }
+//Establecemos función de interrupción 
+void IRAM_ATTR bot_T_ISR(void){
+  unsigned long currentTime = millis();
+  if ((currentTime - debounce1) > debounce_delay) {
+    portENTER_CRITICAL_ISR(&mux);
+    lectura=1;
+    portEXIT_CRITICAL_ISR(&mux);
+    debounce1 = currentTime;
+  }
+}
+loop
+if (lectura==1){
+  initADC();
+  lectura=0;
+}
+
 
 
