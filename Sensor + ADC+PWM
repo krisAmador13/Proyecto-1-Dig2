@@ -41,6 +41,17 @@ void initPWM4();
 //Definimos función de ADC
 void initADC();
 
+void setup{
+}
+
+void loop{
+if (lectura==1){
+  initADC();
+  lectura=0;
+}
+}
+
+
 //Establecemos la función de inicio de los PWM
 void initPWM1(void){
 ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para servo 
@@ -66,18 +77,12 @@ valor_D= map(valor_A, 0, 4095, 320, 400);
 //Establecemos función de interrupción 
 void IRAM_ATTR bot_T_ISR(void){
   unsigned long currentTime = millis();
-  if ((currentTime - debounce1) > debounce_delay) {
+  if ((currentTime - bot_T_lastlL > t_rebote) {
     portENTER_CRITICAL_ISR(&mux);
     lectura=1;
     portEXIT_CRITICAL_ISR(&mux);
     debounce1 = currentTime;
   }
 }
-loop
-if (lectura==1){
-  initADC();
-  lectura=0;
-}
-
 
 
