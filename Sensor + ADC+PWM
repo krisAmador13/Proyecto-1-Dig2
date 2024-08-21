@@ -37,6 +37,9 @@ void initPWM2();
 void initPWM3();
 void initPWM4();
 
+//Definimos función de ADC
+void initADC();
+
 //Establecemos la función de inicio de los PWM
 void initPWM1(void){
 ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para servo 
@@ -58,7 +61,7 @@ void initADC(void){
 analogSetWidth(width);
 analogSetVRefPin(ref_Pin);
 valor_A= analogReadMilliVolts(sensor_T);
-valor_D= map(valor_A, 0, 1023, 0, 40);
+valor_D= map(valor_A, 0, 1023, 0, 37.5);
 }
 
 
