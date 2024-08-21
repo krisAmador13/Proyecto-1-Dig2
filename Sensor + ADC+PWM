@@ -11,8 +11,15 @@
 int res = 10;
 int freq = 50;
 
+//Definimos variables relacionadas con el ADC
+#define ref_Pin 25
+int width = 10;
+float valor_A=0;
+float valor_D=0;
+
+
 //definimos pines de entrada 
-#define Sensor_T 32
+#define sensor_T 32
 #define bot_T 33
 //Definimos algunas salidas 
 #define LED_rojo 18
@@ -26,6 +33,10 @@ unsigned long t_rebote = 60;
 
 //Definimos las funciones de PWM
 void initPWM1();
+void initPWM2();
+void initPWM3();
+void initPWM4();
+
 //Establecemos la función de inicio de los PWM
 void initPWM1(void){
 ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para servo 
@@ -42,6 +53,12 @@ ledcAttachPin(LED_verde, PWM3_Pin); //Le mandamos la señal de PWM al led verde
 void initPWM4(void){
 ledcSetup(PWM4_Pin, freq, res);//Establecemos la señal PWM para led
 ledcAttachPin(LED_azul, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
+}
+void initADC(void){
+analogSetWidth(width);
+analogSetVRefPin(ref_Pin);
+valor_A= analogReadMilliVolts(sensor_T);
+valor_D= map(valor_A, 0, 1023, 0, 40);
 }
 
 
