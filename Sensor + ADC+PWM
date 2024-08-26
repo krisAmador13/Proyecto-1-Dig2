@@ -1,5 +1,5 @@
 #include <Arduino.h>
-//#include "config.h"
+#include "config.h"
 //#include "Adafruit_MQTT.h"
 #include <stdint.h>
 #include <driver/adc.h>
@@ -11,6 +11,8 @@ int freq = 50;
 #define PWM2_Pin 9
 #define PWM3_Pin 10
 #define PWM4_Pin 11
+//Definimos lo necesario para ejecutar ADAFRUIT
+AdafruitIO_Feed *termometro= io.feed("Sensor");
 // Definimos los pines
 #define sensor_t 34
 #define bot_T 35
@@ -74,6 +76,18 @@ void Disp_7seg(uint8_t valor);
 void setup() {
   // Iniciamos comunicación serial 
   Serial.begin(115200);
+  while(! Serial);
+  Serial.print("Connecting to Adafruit IO");
+  // connect to io.adafruit.com
+  io.connect();
+   while(io.status() < AIO_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  // Vemos si nos conectamos 
+  Serial.println();
+  Serial.println(io.statusText());
+
   pinMode(sensor_t, INPUT);
   pinMode(bot_T, INPUT_PULLUP);
   pinMode(LED_rojo,OUTPUT);
@@ -98,11 +112,17 @@ initPWM4();
 void loop() {
   // Iniciamos a leer la interrupción
   attachInterrupt(digitalPinToInterrupt(bot_T), bot_T_ISR, RISING);
+    io.run();
   lectura = digitalRead(bot_T);
   //Serial.print(lectura); 
   delay(50);
   if (lectura == 1) {
     Temp = Tem_lect();
+    //Envio de datos a adafruit 
+    Serial.print("sending -> ");
+    Serial.println(Temp);
+    termometro->save(Temp);
+    delay(3000);
     Temp_separada(Temp, decenas, unidades, decimal); // Llamada a la función con parámetros por referencia
     servo_F();//Se manda a llamar la función de comportamiento del servo para ser ejecutada
     LEDS();//Se manda a llamar la función de comportamiento de los leds para ser ejecutada
@@ -147,8 +167,8 @@ void loop() {
 // put function definitions here:
 float Tem_lect() {
   int valor_A = analogRead(sensor_t);
-  voltaje_T = map(valor_A, 0, 255, 32, 40);
-  temperatura = (voltaje_T); 
+  voltaje_T = map(valor_A, 0, 4095, 320, 400);
+  temperatura = (voltaje_T)/10; 
   return temperatura;
 }
 
