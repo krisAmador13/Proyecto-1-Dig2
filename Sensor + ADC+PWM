@@ -6,7 +6,7 @@
 #include "driver/ledc.h"
 #include "AdafruitIO_WiFi.h"
 //Definimos variables correspondientes a los PWM
-int res = 10;
+int res = 16;
 int freq = 50;
 #define PWM1_Pin 7
 #define PWM2_Pin 9
@@ -20,8 +20,8 @@ AdafruitIO_Feed *termometro= io.feed("sensor");
 #define LED_rojo 27
 #define LED_verde 25
 #define LED_anaranjado 33
-#define servo 2
-#define transistor 2
+#define servo 19
+#define transistor 26
 
 // Declaramos variables para semaforo 
 float voltaje_T = 0;
@@ -59,7 +59,7 @@ int pins[7] = {pinA, pinB, pinC, pinD, pinE, pinF, pinG};
 // Se establece lo pertinente para poder iniciar la interrupción 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 unsigned long bot_T_lastlL = 0;
-unsigned long t_rebote = 50;
+unsigned long t_rebote = 5;
 volatile int lectura = 0;
 
 // Declaramos funciones 
@@ -91,6 +91,7 @@ void setup() {
 //Se establecen los pines de entradas y salidas//
   pinMode(sensor_t, INPUT);
   pinMode(bot_T, INPUT_PULLUP);
+  pinMode(servo,OUTPUT);
   pinMode(LED_rojo,OUTPUT);
   pinMode(LED_verde, OUTPUT);
   pinMode(LED_anaranjado, OUTPUT);
@@ -101,6 +102,7 @@ void setup() {
   pinMode(pinE, OUTPUT);
   pinMode(pinF, OUTPUT);
   pinMode(pinG, OUTPUT);
+  pinMode(pinP,OUTPUT);
   pinMode(Disp_1,OUTPUT);
   pinMode(Disp_2,OUTPUT);
   pinMode(Disp_3,OUTPUT);
@@ -117,23 +119,25 @@ attachInterrupt(digitalPinToInterrupt(bot_T), bot_T_ISR, RISING);
 
 void loop() {
   
-    io.run();
+    
   lectura = digitalRead(bot_T);
   //Serial.print(lectura); 
-  delay(150);
+  //delay(5);
   if (lectura == 1) {
     Temp = Tem_lect();
     //Envio de datos a adafruit 
     Serial.print("sending -> ");
     Serial.println(Temp);
     termometro->save(Temp);
-    delay(3000);
+    //delay(3000);
     Temp_separada(Temp, decenas, unidades, decimal); // Llamada a la función con parámetros por referencia
     servo_F();//Se manda a llamar la función de comportamiento del servo para ser ejecutada
     LEDS();//Se manda a llamar la función de comportamiento de los leds para ser ejecutada
     lectura=0;
+     io.run();
   }
-   //Serial.print(Temp);
+    Serial.print(Temp);
+    Serial.print("\n");
     //Serial.print(sensor_t);
     Serial.print(lectura);
     Serial.print("\n");
@@ -142,7 +146,7 @@ void loop() {
     //Serial.print(unidades);
     //Serial.print(decimal);
     Serial.print("\n");
-    delay(100);
+    //delay(100);
     //Realizamos el multiplexado, escoges que queremos que se muestre en cada display 
     digitalWrite(Disp_1, HIGH);
     digitalWrite(Disp_2, LOW);
@@ -155,6 +159,9 @@ void loop() {
     digitalWrite(Disp_2, HIGH);
     digitalWrite(Disp_3,LOW);
     digitalWrite(pinP, LOW);
+    if (decimal > 0 || decenas > 0){
+      digitalWrite(pinP, HIGH);
+    }
     Disp_7seg(unidades);
     delay(7);
 
@@ -162,9 +169,10 @@ void loop() {
     digitalWrite(Disp_1, LOW);
     digitalWrite(Disp_2, LOW);
     digitalWrite(Disp_3, HIGH);
-    digitalWrite(pinP, HIGH);
     Disp_7seg(decimal);
+    digitalWrite(pinP,LOW);
     delay(7);
+   
 }
 }
 
@@ -172,8 +180,8 @@ void loop() {
 /*La función de temperatura nos permite leer el sensor y convertir sus valores a temperatura */
 float Tem_lect() {
   int valor_A = analogRead(sensor_t);
-  voltaje_T = map(valor_A, 0, 4095, 320, 400);
-  temperatura = (voltaje_T)/10; 
+  voltaje_T = ((valor_A*3300)/4095);
+  temperatura = ((voltaje_T)/10)+20; 
   return temperatura;
 }
 
@@ -221,32 +229,35 @@ ledcAttachPin(LED_anaranjado, PWM4_Pin); //Le mandamos la señal de PWM al led a
 dependiendo del valor qiue emita el sensor cambiará la posición del servo. Se definen determinados rangos para lograr esto */
 void servo_F(){
   if (Temp < 37) {
-    ledcWrite(PWM1_Pin,27);   //El servo se moverá con un dutycicle de 27 si la temperatura es menor a 37 
+    ledcWrite(PWM1_Pin,1638);   //El servo se moverá con un dutycicle de 27 si la temperatura es menor a 37 
+    delay(1000);
   } 
   else if (Temp >= 37 && Temp < 37.5) {
-    ledcWrite(PWM1_Pin,77); //El servo se moverá con un dutycicle de 77 si la temperatura es mayor a 37 y  menor a 37.5 
+    ledcWrite(PWM1_Pin,3277); //El servo se moverá con un dutycicle de 77 si la temperatura es mayor a 37 y  menor a 37.5 
+    delay(1000);
   } 
   else if (Temp >= 37.5) {
-    ledcWrite(PWM1_Pin,128); //El servo se moverá con un dutycicle de 128 si la temperatura es mayor a 37.5
+    ledcWrite(PWM1_Pin,4915); //El servo se moverá con un dutycicle de 128 si la temperatura es mayor a 37.5
+    delay(1000);
 }
 }
 /*La función LEDS funciona similar a la función servo_F delimitando el 
 encendido y apagado de las leds de acuerdo a las mismas condiciones establecidas para el servo*/
 void LEDS(){
   if (Temp < 37) {    
-    ledcWrite(PWM2_Pin, 128);  // 50% ciclo de trabajo
+    ledcWrite(PWM2_Pin, 255);  // 50% ciclo de trabajo
     ledcWrite(PWM3_Pin, 0);
     ledcWrite(PWM4_Pin, 0);
     
   } else if (Temp >= 37 && Temp < 37.5) {
     ledcWrite(PWM2_Pin, 0);
-    ledcWrite(PWM3_Pin, 250);
+    ledcWrite(PWM3_Pin, 255);
     ledcWrite(PWM4_Pin, 0);
     
   } else if (Temp >= 37.5) {
     ledcWrite(PWM2_Pin, 0);
     ledcWrite(PWM3_Pin, 0);
-    ledcWrite(PWM4_Pin, 128);
+    ledcWrite(PWM4_Pin, 255);
     
   }
 }
