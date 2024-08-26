@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <driver/adc.h>
 #include "driver/ledc.h"
+#include "AdafruitIO_WiFi.h"
 //Definimos variables correspondientes a los PWM
 int res = 10;
 int freq = 50;
@@ -87,7 +88,7 @@ void setup() {
   // Vemos si nos conectamos 
   Serial.println();
   Serial.println(io.statusText());
-
+//Se establecen los pines de entradas y salidas//
   pinMode(sensor_t, INPUT);
   pinMode(bot_T, INPUT_PULLUP);
   pinMode(LED_rojo,OUTPUT);
@@ -100,23 +101,27 @@ void setup() {
   pinMode(pinE, OUTPUT);
   pinMode(pinF, OUTPUT);
   pinMode(pinG, OUTPUT);
-  //pinMode(transistor, OUTPUT);
-  //digitalWrite(transistor, HIGH);
+  pinMode(Disp_1,OUTPUT);
+  pinMode(Disp_2,OUTPUT);
+  pinMode(Disp_3,OUTPUT);
+  pinMode(transistor, OUTPUT);
+  digitalWrite(transistor, HIGH);
 //Iniciamos las funciones de PWM
 initPWM1();
 initPWM2();
 initPWM3();
 initPWM4();
+//Iniciamos la interrupción 
+attachInterrupt(digitalPinToInterrupt(bot_T), bot_T_ISR, RISING);
 }
 
 void loop() {
-  // Iniciamos a leer la interrupción
-  attachInterrupt(digitalPinToInterrupt(bot_T), bot_T_ISR, RISING);
+  
     io.run();
   lectura = digitalRead(bot_T);
   //Serial.print(lectura); 
-  delay(50);
-  if (lectura == 0) {
+  delay(150);
+  if (lectura == 1) {
     Temp = Tem_lect();
     //Envio de datos a adafruit 
     Serial.print("sending -> ");
@@ -137,8 +142,8 @@ void loop() {
     //Serial.print(unidades);
     //Serial.print(decimal);
     Serial.print("\n");
-    delay(500);
-    //Realizamos el multiplexado 
+    delay(100);
+    //Realizamos el multiplexado, escoges que queremos que se muestre en cada display 
     digitalWrite(Disp_1, HIGH);
     digitalWrite(Disp_2, LOW);
     digitalWrite(Disp_3,LOW);
@@ -153,7 +158,7 @@ void loop() {
     Disp_7seg(unidades);
     delay(7);
 
-    if (decimal > 0 || decenas > 0) {  // Mostrar el decimal si es mayor a 0 o si hay decenas
+    if (decimal > 0 || decenas > 0) {  // Mostrar el decimal si es mayor a 0 o si hay decenas, si no hay el display no se encenderá 
     digitalWrite(Disp_1, LOW);
     digitalWrite(Disp_2, LOW);
     digitalWrite(Disp_3, HIGH);
@@ -164,32 +169,37 @@ void loop() {
 }
 
 
-// put function definitions here:
+/*La función de temperatura nos permite leer el sensor y convertir sus valores a temperatura */
 float Tem_lect() {
-  int valor_A = random(320,400);
-  //analogRead(sensor_t);
+  int valor_A = analogRead(sensor_t);
   voltaje_T = map(valor_A, 0, 4095, 320, 400);
   temperatura = (voltaje_T)/10; 
   return temperatura;
 }
 
 // Establecemos función de interrupción 
+/*En esta función establecemos que cuando se presione el botón la variable lectura tomará el valor de 1
+esto permite que mediante el uso del botón se activen ciertos componentes*/
 void IRAM_ATTR bot_T_ISR(void) {
   unsigned long currentTime = millis();
   if (currentTime - bot_T_lastlL > t_rebote) {
     portENTER_CRITICAL_ISR(&mux);
     lectura = 1;
+    Serial.println("Interrupción activada");
     portEXIT_CRITICAL_ISR(&mux);
     bot_T_lastlL = currentTime;
   }
 }
-
+/*Temp_Separada es la función que nos permite tomar la temperatura leida
+y separarla en decenas, unidades y decimales para poder imprimir el valor en displays separados*/
 void Temp_separada(float temperatura, int &decenas, int &unidades, int &decimal) {
   int parteEntera = (int)temperatura; // Extraer la parte entera de la temperatura
   decimal = (int)((temperatura - parteEntera) * 10); // Extraer el primer decimal
   decenas = parteEntera / 10; // Calcular las decenas
   unidades = parteEntera % 10; // Calcular las unidades
 }
+/*Se establecen las funciones de PWM para enviar señal al motor servo y a los leds, se emplea una señal
+para cada salida utilizando los pines del 0 al 15*/
 void initPWM1(void){
 ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para el servo 
 ledcAttachPin(servo, PWM1_Pin); //Le mandamos la señal de PWM al servo
@@ -207,17 +217,21 @@ void initPWM4(void){
 ledcSetup(PWM4_Pin, freq, res);//Establecemos la señal PWM para led
 ledcAttachPin(LED_anaranjado, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
 }
+/*La función servo delimita el comportamiento de la salida basado en determinadas condiciones, es decir
+dependiendo del valor qiue emita el sensor cambiará la posición del servo. Se definen determinados rangos para lograr esto */
 void servo_F(){
   if (Temp < 37) {
-    ledcWrite(PWM1_Pin,27);    
+    ledcWrite(PWM1_Pin,27);   //El servo se moverá con un dutycicle de 27 si la temperatura es menor a 37 
   } 
   else if (Temp >= 37 && Temp < 37.5) {
-    ledcWrite(PWM1_Pin,77); 
+    ledcWrite(PWM1_Pin,77); //El servo se moverá con un dutycicle de 77 si la temperatura es mayor a 37 y  menor a 37.5 
   } 
   else if (Temp >= 37.5) {
-    ledcWrite(PWM1_Pin,128); 
+    ledcWrite(PWM1_Pin,128); //El servo se moverá con un dutycicle de 128 si la temperatura es mayor a 37.5
 }
 }
+/*La función LEDS funciona similar a la función servo_F delimitando el 
+encendido y apagado de las leds de acuerdo a las mismas condiciones establecidas para el servo*/
 void LEDS(){
   if (Temp < 37) {    
     ledcWrite(PWM2_Pin, 128);  // 50% ciclo de trabajo
@@ -236,6 +250,8 @@ void LEDS(){
     
   }
 }
+/*La función Disp_7seg emplea un ciclo for para recorrer dos arreglos de delimitan el pin del display y el estado del mismo
+(encendido o apagado) para poder mostrar los datos leidos por el sensor*/
  void Disp_7seg(uint8_t valor){
   for (int i = 0; i < 7; i++) {
     digitalWrite(pins[i], segments[valor][i]);
