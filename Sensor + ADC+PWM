@@ -1,61 +1,146 @@
 #include <Arduino.h>
+//#include "config.h"
+//#include "Adafruit_MQTT.h"
 #include <stdint.h>
-#include "driver/adc.h"
+#include <driver/adc.h>
 #include "driver/ledc.h"
-
-//Definimos lo relacionado al PWM
-#define PMW1_Pin 13
-#define PWM2_Pin 12
-#define PWM3_Pin 14
-#define PWM4_Pin 27
+//Definimos variables correspondientes a los PWM
 int res = 10;
 int freq = 50;
+#define PWM1_Pin 7
+#define PWM2_Pin 9
+#define PWM3_Pin 10
+#define PWM4_Pin 11
+// Definimos los pines
+#define sensor_t 34
+#define bot_T 35
+#define LED_rojo 27
+#define LED_verde 25
+#define LED_anaranjado 33
+#define servo 2
+#define transistor 2
 
-//Definimos variables relacionadas con el ADC
-#define ref_Pin 25
-int width = 10;
-float valor_A=0;
-float valor_D=0;
+// Declaramos variables para semaforo 
+float voltaje_T = 0;
+int valor_A = 0;
+float Temp = 0;
+float temperatura = 0;
+int decenas = 0, unidades = 0, decimal = 0; 
 
+//Establecemos las variables a usar para pasar datos al display de 7 segmentos 
+int segments[10][7] = {
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW},  // 0
+  {LOW, HIGH, HIGH, LOW, LOW, LOW, LOW},      // 1
+  {HIGH, HIGH, LOW, HIGH, HIGH, LOW, HIGH},   // 2
+  {HIGH, HIGH, HIGH, HIGH, LOW, LOW, HIGH},   // 3
+  {LOW, HIGH, HIGH, LOW, LOW, HIGH, HIGH},    // 4
+  {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH},   // 5
+  {HIGH, LOW, HIGH, HIGH, HIGH, HIGH, HIGH},  // 6
+  {HIGH, HIGH, HIGH, LOW, LOW, LOW, LOW},     // 7
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH}, // 8
+  {HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH}   // 9
+};
 
-//definimos pines de entrada 
-#define sensor_T 32
-#define bot_T 33
-//Definimos algunas salidas 
-#define LED_rojo 18
-#define LED_verde 19
-#define LED_azul 21
-#define servo 5
+int pins[7] = {pinA, pinB, pinC, pinD, pinE, pinF, pinG};
 
-//Definimos algunas variables para interrupciones 
-unsigned long bot_T_lastlL=0;
-unsigned long t_rebote = 60;
-volatile int lectura=0;
+// Se establece lo pertinente para poder iniciar la interrupción 
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+unsigned long bot_T_lastlL = 0;
+unsigned long t_rebote = 50;
+int lectura = 0;
 
-//Definimos las funciones de PWM
+// Declaramos funciones 
+float Tem_lect();
+void IRAM_ATTR bot_T_ISR();
+void Temp_separada(float temperatura, int &decenas, int &unidades, int &decimal);
 void initPWM1();
 void initPWM2();
 void initPWM3();
 void initPWM4();
+void servo_F();
+void LEDS();
 
-//Definimos función de ADC
-void initADC();
-
-void setup{
+void setup() {
+  // Iniciamos comunicación serial 
+  Serial.begin(115200);
+  pinMode(sensor_t, INPUT);
+  pinMode(bot_T, INPUT_PULLUP);
+  pinMode(LED_rojo,OUTPUT);
+  pinMode(LED_verde, OUTPUT);
+  pinMode(LED_anaranjado, OUTPUT);
+  pinMode(pinA, OUTPUT);
+  pinMode(pinB, OUTPUT);
+  pinMode(pinC, OUTPUT);
+  pinMode(pinD, OUTPUT);
+  pinMode(pinE, OUTPUT);
+  pinMode(pinF, OUTPUT);
+  pinMode(pinG, OUTPUT);
+  //pinMode(transistor, OUTPUT);
+  //digitalWrite(transistor, HIGH);
+//Iniciamos las funciones de PWM
+initPWM1();
+initPWM2();
+initPWM3();
+initPWM4();
 }
 
-void loop{
-if (lectura==1){
-  initADC();
-  lectura=0;
-}
+void loop() {
+  // Iniciamos a leer la interrupción
+  attachInterrupt(digitalPinToInterrupt(bot_T), bot_T_ISR, RISING);
+  lectura = digitalRead(bot_T);
+  //Serial.print(lectura); 
+  delay(50);
+  if (lectura == 1) {
+    Temp = Tem_lect();
+    Temp_separada(Temp, decenas, unidades, decimal); // Llamada a la función con parámetros por referencia
+    servo_F();//Se manda a llamar la función de comportamiento del servo para ser ejecutada
+    LEDS();//Se manda a llamar la función de comportamiento de los leds para ser ejecutada
+    lectura=0;
+
+  }
+   //Serial.print(Temp);
+    //Serial.print(sensor_t);
+    Serial.print(lectura);
+    Serial.print("\n");
+    Serial.print( voltaje_T);
+    //Serial.print(decenas);
+    //Serial.print(unidades);
+    //Serial.print(decimal);
+    Serial.print("\n");
+    delay(500);
+
 }
 
 
-//Establecemos la función de inicio de los PWM
+// put function definitions here:
+float Tem_lect() {
+  int valor_A = analogRead(sensor_t);
+  voltaje_T = map(valor_A, 0, 4095, 320, 400);
+  temperatura = (voltaje_T) / 10.0;
+  return temperatura;
+}
+
+// Establecemos función de interrupción 
+void IRAM_ATTR bot_T_ISR(void) {
+  unsigned long currentTime = millis();
+  if (currentTime - bot_T_lastlL > t_rebote) {
+    portENTER_CRITICAL_ISR(&mux);
+    lectura = 1;
+    portEXIT_CRITICAL_ISR(&mux);
+    bot_T_lastlL = currentTime;
+  }
+}
+
+void Temp_separada(float temperatura, int &decenas, int &unidades, int &decimal) {
+  int parteEntera = (int)temperatura; // Extraer la parte entera de la temperatura
+  decimal = (int)((temperatura - parteEntera) * 10); // Extraer el primer decimal
+  decenas = parteEntera / 10; // Calcular las decenas
+  unidades = parteEntera % 10; // Calcular las unidades
+}
 void initPWM1(void){
-ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para servo 
-ledcAttachPin(servo, PWM1_Pin); //Le mandamos la señal de PWM al servo 
+ledcSetup(PWM1_Pin, freq, res);//Establecemos la señal PWM para el servo 
+ledcAttachPin(servo, PWM1_Pin); //Le mandamos la señal de PWM al servo
+ledcWrite(PWM1_Pin,0);
 }
 void initPWM2(void){
 ledcSetup(PWM2_Pin, freq, res);//Establecemos la señal PWM para led
@@ -67,22 +152,38 @@ ledcAttachPin(LED_verde, PWM3_Pin); //Le mandamos la señal de PWM al led verde
 }
 void initPWM4(void){
 ledcSetup(PWM4_Pin, freq, res);//Establecemos la señal PWM para led
-ledcAttachPin(LED_azul, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
+ledcAttachPin(LED_anaranjado, PWM4_Pin); //Le mandamos la señal de PWM al led azul 
 }
-//Establecemos función para iniciación de ADC
-void initADC(void){
-valor_A= analogRead(sensor_T);
-valor_D= map(valor_A, 0, 4095, 320, 400);
+void servo_F(){
+  if (Temp < 37) {
+    ledcWrite(PWM1_Pin,27);    
+  } 
+  else if (Temp >= 37 && Temp < 37.5) {
+    ledcWrite(PWM1_Pin,77); 
+  } 
+  else if (Temp >= 37.5) {
+    ledcWrite(PWM1_Pin,128); 
 }
-//Establecemos función de interrupción 
-void IRAM_ATTR bot_T_ISR(void){
-  unsigned long currentTime = millis();
-  if ((currentTime - bot_T_lastlL > t_rebote) {
-    portENTER_CRITICAL_ISR(&mux);
-    lectura=1;
-    portEXIT_CRITICAL_ISR(&mux);
-    debounce1 = currentTime;
+}
+void LEDS(){
+  if (Temp < 37) {    
+    ledcWrite(PWM2_Pin, 128);  // 50% ciclo de trabajo
+    ledcWrite(PWM3_Pin, 0);
+    ledcWrite(PWM4_Pin, 0);
+    
+  } else if (Temp >= 37 && Temp < 37.5) {
+    ledcWrite(PWM2_Pin, 0);
+    ledcWrite(PWM3_Pin, 250);
+    ledcWrite(PWM4_Pin, 0);
+    
+  } else if (Temp >= 37.5) {
+    ledcWrite(PWM2_Pin, 0);
+    ledcWrite(PWM3_Pin, 0);
+    ledcWrite(PWM4_Pin, 128);
+    
   }
 }
+ void Disp_7seg(){
 
+ }   
 
