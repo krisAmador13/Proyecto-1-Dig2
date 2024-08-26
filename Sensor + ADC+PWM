@@ -12,7 +12,7 @@ int freq = 50;
 #define PWM3_Pin 10
 #define PWM4_Pin 11
 //Definimos lo necesario para ejecutar ADAFRUIT
-AdafruitIO_Feed *termometro= io.feed("Sensor");
+AdafruitIO_Feed *termometro= io.feed("sensor");
 // Definimos los pines
 #define sensor_t 34
 #define bot_T 35
@@ -116,7 +116,7 @@ void loop() {
   lectura = digitalRead(bot_T);
   //Serial.print(lectura); 
   delay(50);
-  if (lectura == 1) {
+  if (lectura == 0) {
     Temp = Tem_lect();
     //Envio de datos a adafruit 
     Serial.print("sending -> ");
@@ -166,7 +166,8 @@ void loop() {
 
 // put function definitions here:
 float Tem_lect() {
-  int valor_A = analogRead(sensor_t);
+  int valor_A = random(320,400);
+  //analogRead(sensor_t);
   voltaje_T = map(valor_A, 0, 4095, 320, 400);
   temperatura = (voltaje_T)/10; 
   return temperatura;
