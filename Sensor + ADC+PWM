@@ -28,6 +28,17 @@ float temperatura = 0;
 int decenas = 0, unidades = 0, decimal = 0; 
 
 //Establecemos las variables a usar para pasar datos al display de 7 segmentos 
+#define pinA 4
+#define pinF 2
+#define pinB 15
+#define pinD 22
+#define pinE 23
+#define pinC 18
+#define pinP 21
+#define pinG 5
+#define Disp_1 13
+#define Disp_2 12
+#define Disp_3 14
 int segments[10][7] = {
   {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW},  // 0
   {LOW, HIGH, HIGH, LOW, LOW, LOW, LOW},      // 1
@@ -40,14 +51,13 @@ int segments[10][7] = {
   {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH}, // 8
   {HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH}   // 9
 };
-
 int pins[7] = {pinA, pinB, pinC, pinD, pinE, pinF, pinG};
 
 // Se establece lo pertinente para poder iniciar la interrupción 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 unsigned long bot_T_lastlL = 0;
 unsigned long t_rebote = 50;
-int lectura = 0;
+volatile int lectura = 0;
 
 // Declaramos funciones 
 float Tem_lect();
@@ -59,6 +69,7 @@ void initPWM3();
 void initPWM4();
 void servo_F();
 void LEDS();
+void Disp_7seg(uint8_t valor);
 
 void setup() {
   // Iniciamos comunicación serial 
@@ -96,7 +107,6 @@ void loop() {
     servo_F();//Se manda a llamar la función de comportamiento del servo para ser ejecutada
     LEDS();//Se manda a llamar la función de comportamiento de los leds para ser ejecutada
     lectura=0;
-
   }
    //Serial.print(Temp);
     //Serial.print(sensor_t);
@@ -108,15 +118,37 @@ void loop() {
     //Serial.print(decimal);
     Serial.print("\n");
     delay(500);
+    //Realizamos el multiplexado 
+    digitalWrite(Disp_1, HIGH);
+    digitalWrite(Disp_2, LOW);
+    digitalWrite(Disp_3,LOW);
+    digitalWrite(pinP, LOW);
+    Disp_7seg(decenas);
+    delay(7);
 
+    digitalWrite(Disp_1, LOW);
+    digitalWrite(Disp_2, HIGH);
+    digitalWrite(Disp_3,LOW);
+    digitalWrite(pinP, LOW);
+    Disp_7seg(unidades);
+    delay(7);
+
+    if (decimal > 0 || decenas > 0) {  // Mostrar el decimal si es mayor a 0 o si hay decenas
+    digitalWrite(Disp_1, LOW);
+    digitalWrite(Disp_2, LOW);
+    digitalWrite(Disp_3, HIGH);
+    digitalWrite(pinP, HIGH);
+    Disp_7seg(decimal);
+    delay(7);
+}
 }
 
 
 // put function definitions here:
 float Tem_lect() {
   int valor_A = analogRead(sensor_t);
-  voltaje_T = map(valor_A, 0, 4095, 320, 400);
-  temperatura = (voltaje_T) / 10.0;
+  voltaje_T = map(valor_A, 0, 255, 32, 40);
+  temperatura = (voltaje_T); 
   return temperatura;
 }
 
@@ -183,7 +215,10 @@ void LEDS(){
     
   }
 }
- void Disp_7seg(){
-
+ void Disp_7seg(uint8_t valor){
+  for (int i = 0; i < 7; i++) {
+    digitalWrite(pins[i], segments[valor][i]);
+  
+  }
  }   
 
